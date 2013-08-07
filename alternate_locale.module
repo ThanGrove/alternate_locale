@@ -1,0 +1,165 @@
+<?php
+/**
+ * @file
+ * Module file for alternate_locale module.
+ * 
+ * provides a translation of all link text into a secondary language that appears on mouse over.
+ */
+
+ 
+/*
+ *   Upon enable add two fields to the user's profile:
+ *      alternate_locale_enable: a boolean to indicate whether the user chooses to see alternate translations
+ *      alternate_locale_lang: the language chosen by the user for alternate translations
+ */
+function alternate_locale_enable() {
+  // Get Enabled Language Information
+  $langs = array();
+  $result = db_query("SELECT language, name FROM {languages} WHERE  enabled = 1");
+  foreach ($result as $lang) {
+    $langs[$lang->language] = $lang->name;
+  }
+  // Create Checkbox to turn on Alternate Translation
+  $field_name = "alternate_locale_enabled";
+  if(!field_info_field($field_name)) // check if the field already exists.
+  {
+    $field = array(
+      'field_name'    => $field_name,
+      'type'          => 'list_boolean',
+      'module'        => 'list',
+      'widget' => array(
+        'type' => 'options_onoff',
+      ),
+      'settings' => array(
+        'allowed_values' => array(
+          '0' => 'No',
+          '1' => 'Enable Alternate Locale',
+        ),
+      ),
+    );
+    
+    field_create_field($field);
+    
+    $field_instance = array(
+      'field_name'    => $field_name,
+      'entity_type'   => 'user', 
+      'bundle'        => 'user',
+      'label'         => t('Enable Alternate Locale'),
+      'description'   => t('Enables alternate translation when mousing over a link'),
+      'widget' => array(
+        'type' => 'options_onoff',
+      )
+    );
+    field_create_instance($field_instance);
+  }
+  // Create Alternate Field Language Select Field and attach it to the User Entity
+  $field_name = "alternate_locale_lang";
+  if(!field_info_field($field_name)) // check if the field already exists.
+  {
+    $field = array(
+      'field_name'    => $field_name,
+      'type'          => 'list_text',
+      'module'        => 'list',
+      'widget'        => array(
+        'type'      => 'options_select',
+      ),
+      'settings'      => array(
+        'allowed_values' => $langs,
+      )
+    );
+    
+    field_create_field($field);
+    
+    $field_instance = array(
+      'field_name'    => $field_name,
+      'entity_type'   => 'user', 
+      'bundle'        => 'user',
+      'label'         => t('Alternate Locale Language'),
+      'description'   => t('Choose the language to display when mousing over a link'),
+      'widget'        => array(
+        'type'      => 'options_select',
+      ),
+      'default_value' => 'en'
+    );
+    
+    field_create_instance($field_instance);
+  }
+}
+
+/*
+ * Alter user form to enable language drop down list only when alternate translation is checked and disable it otherwise
+ */
+function alternate_locale_form_user_profile_form_alter(&$form, &$form_state, $form_id) {
+  $form['alternate_locale_lang']['#prefix'] ='<div id="altlangdiv">';
+  $form['alternate_locale_lang']['#suffix'] ='</div>';
+  if(isset($form_state['values'])) {
+    if($form_state['values']['alternate_locale_enabled']['und'][0]['value'] == 0) {
+      $form['alternate_locale_lang']['#disabled'] = TRUE;
+    }
+  } else if($form['#user']->alternate_locale_enabled['und'][0]['value'] == 0) {
+    $form['alternate_locale_lang']['#disabled'] = TRUE;
+  } else {
+    $form['alternate_locale_lang']['#disabled'] = FALSE;
+  }
+  $form['alternate_locale_enabled']['und']['#ajax'] = array(
+    'callback' => 'alternate_locale_enable_callback',
+    'wrapper' => 'altlangdiv',
+    'method' => 'replace',
+    'effect' => 'fade',
+  );
+}
+
+function alternate_locale_enable_callback($form, $form_state) {
+  return $form['alternate_locale_lang'];
+}
+
+/*
+ * When processing each link, check to see if alt. trans is enabled by that user and if so, then add the translation to the 
+ * title attribute for that a tag
+ */
+function alternate_locale_process_link(&$variables) {
+  global $user;
+  $u = user_load($user->uid);
+  if($u->alternate_locale_enabled['und'][0]['value'] == 1) {
+    $destlang = $u->alternate_locale_lang['und'][0]['value'];
+    $linktext = $variables['text'];
+    if($trans = alternate_locale_reverse_trans($linktext, $destlang)) {
+      if (isset($variables['options']['attributes']['title'])) {
+        $variables['options']['attributes']['title'] = '(' . $trans . ') ' . $variables['options']['attributes']['title'];
+      } else {
+        $variables['options']['attributes']['title'] = $trans;
+      }
+    }
+  }
+}
+
+/*
+ * Function called to get the "reverse" translation. That is translate the foreign term back into the English key,
+ * and either return that if "en" is the alt language chosen. Otherwise, look up the term in the alt language and return that
+ * This function returns FALSE if not translation in the alt language is found.
+ */
+function alternate_locale_reverse_trans($string, $destlang) {
+  global $language;
+  $langcode = $language->language;
+  if($destlang == $langcode) { return FALSE; }
+  $lt = locale();
+  $trans = '';
+  if(isset($lt[$langcode])) { 
+    $terms = array_shift($lt[$langcode]);
+    foreach($terms as $key => $value) {
+      if(gettype($value) == 'string' && $value == $string) {
+        if($destlang == 'en') {
+          $trans = $key;
+        } else {
+          $trans = locale($key, NULL, $destlang);
+        }
+      }
+    }
+  } else {
+    if(isset($destlang) && $destlang != 'en') {
+      $trans = locale($string, NULL, $destlang);
+    }
+  }
+  if($trans != $string) {return ucfirst($trans);}
+  return FALSE;
+}

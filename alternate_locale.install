@@ -1,0 +1,16 @@
+<?php 
+
+
+/*
+ * Implements hook_uninstall: 
+ *      Removes fields installed when module is enabled.
+ *      See the hook_enable function in the main module file.
+ */
+function alternate_locale_uninstall() {
+  $fields = array('alternate_locale_enabled', 'alternate_locale_lang');
+  foreach($fields as $field) {
+    $instance = field_info_instance('user', $field, 'user');
+    field_delete_instance($instance);
+    field_delete_field($field);
+  }
+}
