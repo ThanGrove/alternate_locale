@@ -115,7 +115,7 @@ function alternate_locale_enable_callback($form, $form_state) {
 function alternate_locale_process_link(&$variables) {
   global $user;
   $u = user_load($user->uid);
-  if($u->alternate_locale_enabled['und'][0]['value'] == 1) {
+  if(isset($u->alternate_locale_enabled['und']) && $u->alternate_locale_enabled['und'][0]['value'] == 1) {
     $destlang = $u->alternate_locale_lang['und'][0]['value'];
     $linktext = $variables['text'];
     if($trans = alternate_locale_reverse_trans($linktext, $destlang)) {
