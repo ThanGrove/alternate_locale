@@ -13,12 +13,7 @@
  *      alternate_locale_lang: the language chosen by the user for alternate translations
  */
 function alternate_locale_enable() {
-  // Get Enabled Language Information
-  $langs = array();
-  $result = db_query("SELECT language, name FROM {languages} WHERE  enabled = 1");
-  foreach ($result as $lang) {
-    $langs[$lang->language] = $lang->name;
-  }
+  $langs = alternate_locale_get_enabled_langs();
   // Create Checkbox to turn on Alternate Translation
   $field_name = "alternate_locale_enabled";
   if(!field_info_field($field_name)) // check if the field already exists.
@@ -162,4 +157,14 @@ function alternate_locale_reverse_trans($string, $destlang) {
   }
   if($trans != $string) {return ucfirst($trans);}
   return FALSE;
+}
+
+// Get Enabled Language Information
+function alternate_locale_get_enabled_langs() {
+  $langs = array();
+  $result = db_query("SELECT language, name FROM {languages} WHERE  enabled = 1");
+  foreach ($result as $lang) {
+    $langs[$lang->language] = $lang->name;
+  }
+  return $langs;
 }
