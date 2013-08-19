@@ -59,7 +59,7 @@ function alternate_locale_enable() {
         'type'      => 'options_select',
       ),
       'settings'      => array(
-        'allowed_values' => $langs,
+        'allowed_values_function' => 'alternate_locale_get_enabled_langs',
       )
     );
     
@@ -96,6 +96,11 @@ function alternate_locale_form_user_profile_form_alter(&$form, &$form_state, $fo
   } else {
     $form['alternate_locale_lang']['#disabled'] = FALSE;
   }
+  
+  $opts = $form['alternate_locale_lang']['und']['#options'];
+  asort($opts);
+  $form['alternate_locale_lang']['und']['#options'] = $opts;
+  
   $form['alternate_locale_enabled']['und']['#ajax'] = array(
     'callback' => 'alternate_locale_enable_callback',
     'wrapper' => 'altlangdiv',
@@ -105,6 +110,9 @@ function alternate_locale_form_user_profile_form_alter(&$form, &$form_state, $fo
 }
 
 function alternate_locale_enable_callback($form, $form_state) {
+  $opts = $form['alternate_locale_lang']['und']['#options'];
+  asort($opts);
+  $form['alternate_locale_lang']['und']['#options'] = $opts;
   return $form['alternate_locale_lang'];
 }
 
